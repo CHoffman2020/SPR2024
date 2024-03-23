@@ -14,19 +14,20 @@
 // cd ~/src/lab2
 // gcc -g -pthread -o lab2 lab2.c
 
-int SIZE = 1000000;
+int SIZE = 15;
 char ALT = 'S';		  // S
 int THRESH = 10;	  // 10
 int SEED = 0;		  // Random
 char MULTHREAD = 'Y'; // Y
-int PIECES = 10;	  // 10
+int PIECES = 4;	  // 10
 int MAXTHREAD = 4;	  // 4
-char MED3 = 'Y';	  // N
-char EARLY = 'Y';	  // Y
+char MED3 = 'N';	  // N
+char EARLY = 'N';	  // Y
 int *array;
 
 #define FILENAME "random.dat"
 // ADD RANDOM FILE ONCE U GET THE SORTING WORKING
+bool isSorted(int *sArray, int Num);
 void QuickSort(int *qarray, int lo, int hi);
 
 int main(int argc, char *argv[], char *env[])
@@ -36,7 +37,7 @@ int main(int argc, char *argv[], char *env[])
 		if (strcmp(argv[i], "-n") == 0)
 		{
 			SIZE = atoi(argv[i + 1]);
-			printf("%d\n", SIZE);
+			printf("SIZE: %d\n", SIZE);
 		}
 		else if (strcmp(argv[i], "-a") == 0)
 		{
@@ -49,19 +50,19 @@ int main(int argc, char *argv[], char *env[])
 			{
 				ALT = 'S';
 			}
-			printf("%c\n", ALT);
+			printf("ALTERNATE: %c\n", ALT);
 		}
 		else if (strcmp(argv[i], "-s") == -0)
 		{
 			// printf("%s\n", argv[i]);
 			THRESH = atoi(argv[i + 1]);
-			printf("%d\n", THRESH);
+			printf("THRESHOLD: %d\n", THRESH);
 		}
 		else if (strcmp(argv[i], "-r") == 0)
 		{
 			// printf("%s\n", argv[i]);
 			SEED = atoi(argv[i + 1]);
-			printf("%d\n", SEED);
+			printf("SEED: %d\n", SEED);
 		}
 		else if (strcmp(argv[i], "-m") == 0)
 		{
@@ -74,19 +75,19 @@ int main(int argc, char *argv[], char *env[])
 			{
 				MULTHREAD = 'Y';
 			}
-			printf("%c\n", MULTHREAD);
+			printf("MULTITHREAD: %c\n", MULTHREAD);
 		}
 		else if (strcmp(argv[i], "-p") == 0)
 		{
 			// printf("%s\n", argv[i]);
 			PIECES = atoi(argv[i + 1]);
-			printf("%d\n", PIECES);
+			printf("PIECES: %d\n", PIECES);
 		}
 		else if (strcmp(argv[i], "-t") == 0)
 		{
 			// printf("%s\n", argv[i]);
 			MAXTHREAD = atoi(argv[i + 1]);
-			printf("%d\n", MAXTHREAD);
+			printf("MAXTHREAD: %d\n", MAXTHREAD);
 		}
 		else if (strcmp(argv[i], "-m3") == 0)
 		{
@@ -99,7 +100,7 @@ int main(int argc, char *argv[], char *env[])
 			{
 				MED3 = 'N';
 			}
-			printf("%c\n", MED3);
+			printf("MEDIAN: %c\n", MED3);
 		}
 		else if (strcmp(argv[i], "-e") == 0)
 		{
@@ -112,14 +113,19 @@ int main(int argc, char *argv[], char *env[])
 			{
 				EARLY = 'N';
 			}
-			printf("%c\n", EARLY);
+			printf("EARLY: %c\n", EARLY);
 		}
 		else
 		{
 			printf("\nERROR");
 		}
 	}
-
+	printf("\n");
+	if(SEED == 0)
+	{
+		SEED = rand() % 1000000000;
+	}
+	srand(time(NULL));
 	// GRABBING A SPECIFIC CHUNK OF THE MEMORY IN THE FILE AND CONVERTING THROWING THEM INTO AN array
 	// ALSO HANDLED STARTING AT THE END OF A FILE AND WRAPPING BACK AROUND TO THE FRONT
 	array = (int *)malloc(SIZE * sizeof(int));
@@ -128,77 +134,30 @@ int main(int argc, char *argv[], char *env[])
 		fprintf(stderr, "Memory allocation failed\n");
 		return 1; // Exit the program if memory allocation fails
 	}
+
 	FILE *inputFile = fopen(FILENAME, "rb");
 	if (!inputFile)
 	{
 		printf("Failed to open %s File \n", FILENAME);
 	}
-	int farray[SIZE];
-	srand(time(NULL));
-
-	fseek(inputFile, 0, SEEK_END);
-	long fileSize = ftell(inputFile);
-
-	long file_notByte = fileSize / sizeof(int);
-
-	if (SEED == 0)
+	fseek(inputFile, SEED * sizeof(int), SEEK_SET);
+	int dataCount = fread(array, sizeof(int), SIZE, inputFile);
+	if(dataCount < SIZE)
 	{
-		SEED = rand() % file_notByte;
-	}
-
-	int high = SIZE - 1;
-	int low = 0;
-	bool needTwoarray = false;
-	long start_offset = SEED * sizeof(int);
-	fseek(inputFile, start_offset, SEEK_SET);
-	long current_position = ftell(inputFile);
-	long size_length = SIZE * sizeof(int);
-	long end_offset = (SIZE + SEED) * sizeof(int);
-	long file_Diff = fileSize - current_position;
-	long file_nonByteDiff = file_Diff / sizeof(int);
-	long file_BegDiff = SIZE - file_nonByteDiff;
-
-	if (fseek(inputFile, start_offset, SEEK_SET) != 0)
-	{
-		perror("Error seeking file");
-		fclose(inputFile);
-		return 1;
-	}
-	if ((file_Diff) < size_length)
-	{
-		needTwoarray = true;
-		fread(array, sizeof(int), file_nonByteDiff, inputFile);
 		fseek(inputFile, 0, SEEK_SET);
-		fread(farray, sizeof(int), file_BegDiff, inputFile);
-		printf("END OF FILE -> BEGINNING NEEDED\n");
-	}
-	else
-	{
-		fread(array, sizeof(int), SIZE, inputFile);
+		int leftOverData = SIZE - dataCount;
+		fread(array + dataCount, sizeof(int), leftOverData, inputFile);
 	}
 
 	fclose(inputFile);
-	int iterate = 0;
-	printf("FILESIZE:  %ld\n", fileSize);
-	printf("START SEED:  %d\n", SEED);
-	if (needTwoarray == true)
-	{
-		for (int i = file_nonByteDiff; i < SIZE; i++)
-		{
-			array[i] = farray[iterate];
-			iterate++;
-		}
-		printf("FIRST array END:  %d\n", array[file_nonByteDiff - 1]);
-		printf("SECOND array BEG:  %d\n", array[file_nonByteDiff]);
-	}
-
 	/*
 	for(int i=0; i < SIZE; i++)
 	{
 		printf("%d\n", array[i]);
 	}
 	*/
-
+	int low = 0;
+	int high = SIZE - 1;
 	// MEDIAN FOR THE NORMAL array ITSELF BEFORE PARTITIONING
 	if (MED3 == 'Y' && MULTHREAD == 'N')
 	{
@@ -222,24 +181,31 @@ int main(int argc, char *argv[], char *env[])
 				array[mid] = temp;
 			}
 		}
-		low = mid;
 	}
 
 	// MULTITHREADING WITH AND WITHOUT MEDIAN
 	if (MULTHREAD == 'Y')
 	{
+		printf("Creating multithread partitions\n");
 		int start[PIECES];
 		int end[PIECES];
-		int mid = 0;
-		int max;
-		int block_max = 0;
-		for (int piece = 1; piece < PIECES; piece++)
+		int pivot;
+		//int piece = 1;
+		for(int piece = 1; piece < PIECES; piece++)
 		{
-
+			if(piece == 1)
+			{
+				start[0] = 0;
+				end[0] = SIZE - 1;
+			}
+			low = start[0];
+			high = end[0];
+			//int max = 0;
+			printf("Partioning %3d   -   %3d (%d)...", low, high, high - low);
 			if (MED3 == 'Y')
 			{
-				mid = low + (high - low) / 2;
-				printf("MEDIAN USED  \n");
+				int mid = low + (high - low) / 2;
+				//printf("MEDIAN USED  \n");
 				if (array[low] > array[mid])
 				{
 					int temp = array[low];
@@ -259,7 +225,7 @@ int main(int argc, char *argv[], char *env[])
 					}
 				}
 			}
-			int pivot = array[mid];
+			pivot = array[low];
 			int i = low;
 			int j = high + 1;
 			do
@@ -279,55 +245,43 @@ int main(int argc, char *argv[], char *env[])
 				else
 					break; // else partitioning is finished
 			} while (1);
-			int leftCount = i - low;
-			int rightCount = high - i + 1;
-			if (piece == 1)
+			int temp = array[low];
+			array[low] = array[j];
+			array[j] = temp;
+
+
+			double RPerc = (high - low + 1 > 0) ? ((double)(high - j - 1) / (double)(high - low + 1)) * 100 : 0.0;
+			double LPerc = (high - low + 1 > 0) ? ((double)(j - 1 - low) / (double)(high - low + 1)) * 100 : 0.0;
+			printf("results: %3d   -  %3d (%2.1f / %2.1f)\n", j - 1 - low, high - j + 1, LPerc, RPerc);
+
+			start[0] = low;
+			end[0] = j - 1;
+			start[piece] = j + 1;
+			end[piece] = high;
+
+			for(int first = 0; first < piece; first++)
 			{
-				start[piece - 1] = low;
-				end[piece - 1] = i - 1;
-				start[piece] = i + 1;
-				end[piece] = high;
-				if (leftCount < rightCount)
+				for(int second = first + 1; second < piece + 1; second++)
 				{
-					block_max = 1;
-				}
-			}
-			else if (high != SIZE - 1)
-			{
-				end[block_max] = i - 1;
-				start[piece] = i + 1;
-				end[piece] = high;
-			}
-			else
-			{
-				start[block_max] = i + 1;
-				start[piece] = low;
-				end[piece] = i - 1;
-			}
-			for (int aSize = 0; aSize < piece; aSize++)
-			{
-				if (end[aSize] - start[aSize] > max)
-				{
-					max = end[aSize] - start[aSize];
-					block_max = aSize;
-					if (piece == 1)
+					if(end[first] - start[first] < end[second] - start[second])
 					{
-						if (end[aSize + 1] - start[aSize + 1] > max)
-						{
-							max = end[aSize + 1] - start[aSize + 1];
-							block_max = aSize + 1;
-						}
+						int temp = start[first];
+						start[first] = start[second];
+						start[second] = temp;
+
+						temp = end[first];
+						end[first] = end[second];
+						end[second] = temp;
 					}
 				}
 			}
-			low = start[block_max];
-			high = end[block_max];
-		}
+        }
+		/*
 		for (int i = 0; i < PIECES; i++)
 		{
 			printf("PIECE: %d  |   %d  -  %d\n", i, start[i], end[i]);
 		}
-		/*
+		
 		for(int i=0; i < SIZE; i++)
 		{
 			printf("%d\n", array[i]);
@@ -336,15 +290,16 @@ int main(int argc, char *argv[], char *env[])
 		for (int i = 0; i < PIECES; i++)
 		{
 			QuickSort(array, start[i], end[i]);
-			printf("PARTION %d SORTED\n", i);
+			//printf("PARTION %d SORTED\n", i);
 		}
 	}
 	// NON MULTITHREADING
 	else
 	{
 		QuickSort(array, low, high); // QUICK SORTING
-		printf("NO MULTITHREAD\n\n");
+		//printf("NO MULTITHREAD\n\n");
 	}
+	//if(!isSorted(array, SIZE)) perror("ERROR: List not sorted\n");
 	printf("\n\nPOST SORTING\n");
 
 	/*
@@ -358,6 +313,19 @@ int main(int argc, char *argv[], char *env[])
 	// Time how long it takes to read in values with 0.001 decimal format
 	// Record the timings (&array[#] to grab the value in the index)
 }
+
+bool isSorted(int sArray[], int Num)
+{
+	for(int i = 0; i < Num; i++)
+	{
+		if(sArray[i] > sArray[i + 1])
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
 void QuickSort(int qarray[], int lo, int hi)
 {
 	int segmentSize = hi - lo + 1;
@@ -406,30 +374,20 @@ void QuickSort(int qarray[], int lo, int hi)
 	{
 		if (ALT == 'S')
 		{
-			int k = 1;
-			while (k <= segmentSize)
-				k - k << 1;
-			k = (k >> 1) - 1;
-			do
+			int k = segmentSize;
+    		while (k > 0) 
 			{
-				for (int i = 0; i < (lo + segmentSize - k); i++) // for each comb position
-				{
-					for (int j = i; j >= 0; j -= k) // Tooth-to-tooth is k
+       		 	for (int i = lo; i < hi - k + 1; i++) 
+			 	{
+           	 		for (int j = i; j >= lo && qarray[j] > qarray[j + k]; j -= k) 
 					{
-						if (qarray[j] <= qarray[j + k])
-						{
-							break; // move upstream/exit?
-						}
-						else
-						{
-							int temp = qarray[j];
-							qarray[j] = qarray[j + k]; // swap qarray[j] and qarray[j + k];
-							qarray[j + k] = temp;
-						}
-					}
-				}
-				k >> 1; // or k /= 2;
-			} while (k > 0);
+                		int temp = qarray[j];
+                		qarray[j] = qarray[j + k];
+                		qarray[j + k] = temp;
+            		}
+        		}
+        	k /= 2;
+    		}
 		}
 		// ALTERNATIVE SORT METHOD S for SHELL... I FOR INSERT
 		if (ALT == 'I')
